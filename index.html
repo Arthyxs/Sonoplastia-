@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mesa de Sonoplastia Pro</title>
+    <style>
+        /* ESTILOS GERAIS - MOBILE FIRST */
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1e1e1e;
+            --primary-color: #bb86fc;
+            --primary-variant-color: #3700b3;
+            --secondary-color: #03dac6;
+            --error-color: #cf6679;
+            --text-color: #e0e0e0;
+            --text-secondary-color: #a0a0a0;
+            --border-color: #333333;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 16px;
+        }
+
+        /* CABEÇALHO E CONTROLES MESTRES */
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 16px;
+        }
+
+        header h1 {
+            margin: 0 0 16px 0;
+            color: var(--primary-color);
+            font-size: 2rem;
+        }
+
+        .master-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #search-box {
+            font-size: 1rem;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: var(--surface-color);
+            color: var(--text-color);
+            min-width: 250px;
+        }
+
+        .master-volume-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #stop-all-btn {
+            background-color: var(--error-color);
+            color: var(--bg-color);
+            font-weight: bold;
+            padding: 12px 18px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+        }
+
+        /* CONTAINER PRINCIPAL DA MESA */
+        #soundboard-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            /* Uma coluna por padrão (celular) */
+            gap: 16px;
+        }
+
+        #no-results {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary-color);
+            display: none;
+            /* Inicia oculto */
+        }
+
+        /* PAINEL DE CADA SOM (SOUND PAD) */
+        .sound-pad {
+            background-color: var(--surface-color);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border: 2px solid transparent;
+            transition: border-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .sound-pad.playing {
+            border-color: var(--secondary-color);
+        }
+
+        .pad-header h3 {
+            margin: 0 0 4px 0;
+            font-size: 1.1rem;
+        }
+
+        .pad-header p {
+            margin: 0;
+            font-size: 0.8rem;
+            color: var(--text-secondary-color);
+            font-style: italic;
+        }
+
+        /* CONTROLES (BOTÕES, SLIDERS) */
+        .controls,
+        .fade-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .controls button,
+        .fade-controls button {
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 0.9rem;
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            background-color: var(--primary-variant-color);
+            color: var(--text-color);
+            flex-grow: 1;
+            /* Faz botões ocuparem espaço igual */
+        }
+
+        .fade-controls button {
+            background-color: #444;
+        }
+
+        .btn-loop.active {
+            background-color: var(--secondary-color);
+            color: var(--bg-color);
+        }
+
+        .btn-stop {
+            background-color: #5a2c2c;
+        }
+
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-grow: 1;
+        }
+
+        /* ESTILO DOS SLIDERS (BARRAS DE PROGRESSO E VOLUME) */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #444;
+            border-radius: 5px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            /* Maior para toque */
+            background: var(--primary-color);
+            border-radius: 50%;
+        }
+
+        /* TIMELINE E DURAÇÃO */
+        .time-display {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+        }
+
+        /* Media Queries para telas maiores (Tablets e Desktops) */
+        @media (min-width: 768px) {
+            body {
+                padding: 24px;
+            }
+
+            header h1 {
+                font-size: 2.5rem;
+            }
+
+            #soundboard-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 1200px) {
+            #soundboard-container {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (min-width: 1600px) {
+            #soundboard-container {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Mesa de Sonoplastia Pro</h1>
+        <div class="master-controls">
+            <input type="search" id="search-box" placeholder="🔎 Buscar som...">
+            <div class="master-volume-container">
+                <span>🔊</span>
+                <input type="range" id="master-volume" min="0" max="1" step="0.01" value="1">
+            </div>
+            <button id="stop-all-btn">PARAR TUDO</button>
+        </div>
+    </header>
+
+    <main id="soundboard-container"></main>
+    <div id="no-results">
+        <h3>Nenhum som encontrado</h3>
+        <p>Tente refinar sua busca.</p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // =================================================================================
+            // <-- EDITAR AQUI: Adicione, remova ou modifique seus sons nesta lista.
+            // =================================================================================
+            const soundboardData = [
+                // Prólogo
+                { file: "videoplayback.m4a", name: "Interferência de Rádio", note: "Prólogo" },
+                { file: "Resting Grounds.mp3", name: "Resting grounds Hollow", note: "Depoimentos" },
+
+                // Ato I
+                { file: "Queen's Gardens.mp3", name: "Queens gardens", note: "Ato I - Narração" },
+                { file: "Bellhart.mp3", name: "Ballad Bellhort", note: "Ato I - Narração Final" },
+                { file: "Mantis Lords.mp3", name: "Mantis Lords", note: "Ato I, Cena 2 - Após chute no Balde" },
+                { file: "Red Right Hand.mp3", name: "Red Right hand", note: "Ato I, Cena 3 - baixo instrumental" },
+
+                // Ato II
+                { file: "Inkwell Hell (Piano).mp3", name: "Inkwell hell (Piano)", note: "Ato II, Cena 4" },
+                { file: "The Pink Panther Theme - From _The Pink Panther_.mp3", name: "Pantera cor de Rosa", note: "Ato II, Cena 5 - Som inicio dela (Gato)" },
+                { file: "Don't Deal with the Devil (Instrumental).mp3", name: "Don't deal with the devil", note: "Ato II, Cena 6" },
+                { file: "Praia com Gaivotas e Mar Calmo.mp3", name: "Som de vento / mar / areia", note: "Ato II, Cena 8" },
+                { file: "Kingdom's Edge.mp3", name: "Kingdom Edge's", note: "Ato II, Cena 9" },
+                { file: "SpotiDownloader.com - Enter Pharloom - Christopher Larkin.mp3", name: "Enter Phon", note: "Ato II, Cena 10 parte 1 - entrada do Raimundo" },
+                { file: "SpotiDownloader.com - Moss Grotto - Christopher Larkin.mp3", name: "Moss grotto", note: "Ato II, Cena 10 parte 2 - Narrador" },
+
+                // Ato IV
+                { file: "Jungle Rhythm.mp3", name: "Jungle Rhythm", note: "Ato IV, Cena 11 - Início do terreiro" },
+                { file: "Dreamers.mp3", name: "Dreamers glim", note: "Ato IV, Cena 12 - Pedro bala desesperado" },
+                { file: "Lace.mp3", name: "Loce", note: "Ato IV, Cena 13" },
+                { file: "Musica Perditionem - Acústico.mp3", name: "Musica Perditionem acustico", note: "Ato IV, Cena 14" },
+                { file: "Hollow Knight.mp3", name: "Hollow Knight", note: "Ato IV, Cena 15" },
+                { file: "Dirtmouth.mp3", name: "Dirtmouth", note: "Ato IV, Cena 16" },
+                { file: "Aliança (Violino).mp3", name: "Aliança tribal da violino", note: "Ato IV, Cena 17 - Narração" },
+            ];
+            // =================================================================================
+            // Fim da área de edição
+            // =================================================================================
+
+            const container = document.getElementById('soundboard-container');
+            const searchBox = document.getElementById('search-box');
+            const masterVolume = document.getElementById('master-volume');
+            const stopAllBtn = document.getElementById('stop-all-btn');
+            const noResultsEl = document.getElementById('no-results');
+
+            const allSounds = []; // Array para guardar referências de todos os sons
+
+            const formatTime = (seconds) => {
+                if (isNaN(seconds)) return "00:00";
+                const min = Math.floor(seconds / 60);
+                const sec = Math.floor(seconds % 60);
+                return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+            };
+
+            // --- FUNÇÕES DE FADE ---
+            function fade(audio, type, duration = 2000) {
+                if (audio.fadeInterval) clearInterval(audio.fadeInterval);
+
+                const targetVolume = (type === 'in') ? audio.individualVolume : 0;
+                const startVolume = audio.volume;
+                const step = (targetVolume - startVolume) * 50 / duration;
+
+                if (type === 'in' && audio.paused) {
+                    audio.volume = 0;
+                    audio.play();
+                }
+
+                audio.fadeInterval = setInterval(() => {
+                    const newVolume = audio.volume + step;
+                    if ((step > 0 && newVolume >= targetVolume) || (step < 0 && newVolume <= targetVolume)) {
+                        audio.volume = targetVolume;
+                        if (type === 'out') audio.pause();
+                        clearInterval(audio.fadeInterval);
+                        audio.fadeInterval = null;
+                    } else {
+                        audio.volume = newVolume;
+                    }
+                }, 50);
+            }
+
+
+            // --- CRIAÇÃO DOS PAINEIS ---
+            soundboardData.forEach(sound => {
+                const pad = document.createElement('div');
+                pad.className = 'sound-pad';
+
+                const audio = new Audio(sound.file);
+                audio.preload = 'metadata';
+                audio.individualVolume = 0.75; // Volume individual padrão
+
+                pad.innerHTML = `
+                <div class="pad-header">
+                    <h3>${sound.name}</h3>
+                    <p>${sound.note}</p>
+                </div>
+                <div class="timeline">
+                    <input type="range" class="seek-slider" value="0" max="100" step="0.1">
+                    <div class="time-display">
+                        <span class="current-time">00:00</span>
+                        <span class="total-duration">--:--</span>
+                    </div>
+                </div>
+                <div class="fade-controls">
+                    <button class="btn-fade-in">Fade In</button>
+                    <button class="btn-fade-out">Fade Out</button>
+                </div>
+                <div class="controls">
+                    <button class="btn-play">▶</button>
+                    <button class="btn-stop">■</button>
+                    <button class="btn-loop">Loop</button>
+                    <div class="volume-control">
+                        <span>🔉</span>
+                        <input type="range" class="volume-slider" value="${audio.individualVolume}" min="0" max="1" step="0.01">
+                    </div>
+                </div>
+            `;
+                container.appendChild(pad);
+
+                // Adiciona referências ao array principal
+                allSounds.push({
+                    pad: pad,
+                    audio: audio,
+                    name: sound.name.toLowerCase(),
+                    note: sound.note.toLowerCase()
+                });
+
+                // --- Lógica de cada painel ---
+                const playBtn = pad.querySelector('.btn-play');
+                const stopBtn = pad.querySelector('.btn-stop');
+                const loopBtn = pad.querySelector('.btn-loop');
+                const volumeSlider = pad.querySelector('.volume-slider');
+                const seekSlider = pad.querySelector('.seek-slider');
+                const fadeInBtn = pad.querySelector('.btn-fade-in');
+                const fadeOutBtn = pad.querySelector('.btn-fade-out');
+
+                playBtn.addEventListener('click', () => audio.paused ? audio.play() : audio.pause());
+                stopBtn.addEventListener('click', () => {
+                    if (audio.fadeInterval) clearInterval(audio.fadeInterval);
+                    audio.pause();
+                    audio.currentTime = 0;
+                });
+                loopBtn.addEventListener('click', () => {
+                    audio.loop = !audio.loop;
+                    loopBtn.classList.toggle('active', audio.loop);
+                });
+                fadeInBtn.addEventListener('click', () => fade(audio, 'in'));
+                fadeOutBtn.addEventListener('click', () => fade(audio, 'out'));
+
+                volumeSlider.addEventListener('input', (e) => {
+                    audio.individualVolume = parseFloat(e.target.value);
+                    audio.volume = audio.individualVolume * parseFloat(masterVolume.value);
+                });
+
+                seekSlider.addEventListener('input', (e) => {
+                    if (audio.duration) audio.currentTime = (audio.duration / 100) * e.target.value;
+                });
+
+                audio.addEventListener('play', () => { playBtn.textContent = '❚❚'; pad.classList.add('playing'); });
+                audio.addEventListener('pause', () => { playBtn.textContent = '▶'; pad.classList.remove('playing'); });
+                audio.addEventListener('ended', () => { playBtn.textContent = '▶'; pad.classList.remove('playing'); seekSlider.value = 0; });
+
+                audio.addEventListener('timeupdate', () => {
+                    seekSlider.value = (audio.currentTime / audio.duration) * 100;
+                    pad.querySelector('.current-time').textContent = formatTime(audio.currentTime);
+                });
+
+                audio.addEventListener('loadedmetadata', () => {
+                    pad.querySelector('.total-duration').textContent = formatTime(audio.duration);
+                    // Define volume inicial considerando o master
+                    audio.volume = audio.individualVolume * parseFloat(masterVolume.value);
+                });
+
+                audio.addEventListener('error', () => {
+                    pad.querySelector('.pad-header h3').textContent = `Erro: ${sound.name}`;
+                    pad.style.borderColor = 'var(--error-color)';
+                });
+            });
+
+            // --- LÓGICA DOS CONTROLES MESTRES ---
+
+            // 1. Busca
+            searchBox.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                let visibleCount = 0;
+                allSounds.forEach(sound => {
+                    const isVisible = sound.name.includes(searchTerm) || sound.note.includes(searchTerm);
+                    sound.pad.style.display = isVisible ? 'flex' : 'none';
+                    if (isVisible) visibleCount++;
+                });
+                noResultsEl.style.display = visibleCount === 0 ? 'block' : 'none';
+            });
+
+            // 2. Volume Mestre
+            masterVolume.addEventListener('input', (e) => {
+                const masterValue = parseFloat(e.target.value);
+                allSounds.forEach(sound => {
+                    sound.audio.volume = sound.audio.individualVolume * masterValue;
+                });
+            });
+
+            // 3. Parar Tudo
+            stopAllBtn.addEventListener('click', () => {
+                allSounds.forEach(sound => {
+                    if (sound.audio.fadeInterval) clearInterval(sound.audio.fadeInterval);
+                    sound.audio.pause();
+                    sound.audio.currentTime = 0;
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>
